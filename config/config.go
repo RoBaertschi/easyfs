@@ -1,7 +1,8 @@
 package config
 
 import (
-	"io/fs"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -10,32 +11,38 @@ import (
 )
 
 type Config struct {
-	ServeDirectory fs.FS
+	ServeDirectory string
 }
 
 type Filesystem struct {
-	ServeDirectory string `mapstructure:"serve_directory"`
+	ServeDirectory string `mapstructure:"serve_directory" default:"./static"`
 }
 
-func ReadConfig(path string) error {
-	config.WithOptions(config.ParseEnv)
+func ReadConfig(path string) (*Config, error) {
+	config.WithOptions(config.ParseEnv, config.ParseDefault)
 	config.AddDriver(toml.Driver)
 
 	err := config.LoadFiles(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	filesystem := Filesystem{}
 	err = config.BindStruct("fs", &filesystem)
 
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("while reading config tag \"fs\": %s", err.Error())
 	}
 
 	absoluteServeDir, err := filepath.Abs(filesystem.ServeDirectory)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	if _, err := os.Stat(absoluteServeDir); errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("The provided serve dir %s does not exist!", absoluteServeDir)
+	}
+	return &Config{
+		ServeDirectory: absoluteServeDir,
+	}, nil
 }
