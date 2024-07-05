@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"robaertshi.xyz/easyfs/config"
+	"robaertshi.xyz/easyfs/server"
 )
 
 func NewLogger(name string) *log.Logger {
@@ -17,9 +18,14 @@ var mainLogger = NewLogger("main")
 func main() {
 	mainLogger.Println("Hello World")
 
-	_, err := config.ReadConfig("./easyfs.toml")
+	conf, err := config.ReadConfig("./easyfs.toml")
 	if err != nil {
 		mainLogger.Fatalf("Could not read config, error: %s", err.Error())
 	}
 
+	err = server.StartServer(conf, NewLogger("server"))
+	if err != nil {
+		mainLogger.Fatalf("Error while running server: %s", err.Error())
+	}
+	mainLogger.Println("Finished")
 }
